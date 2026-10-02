@@ -1,181 +1,121 @@
+import streamlit as st
 import pandas as pd
 import plotly.express as px
-import streamlit as st
 
 # 1. Page Configuration
 st.set_page_config(
-    page_title="FIFA World Cup Stats Visualizer",
-    page_icon="⚽",
-    layout="wide",
+    page_title="UK Census Car Availability Explorer (1950-Present)",
+    page_icon="🚗",
+    layout="wide"
 )
 
-
-# 2. Load and Cache Data
+# 2. Data Loading & Simulation based on historical Census benchmarks
 @st.cache_data
-def load_data():
-  """Generates or loads the FIFA World Cup dataset."""
-  data = {
-      "Year": [
-          1998,
-          1998,
-          2002,
-          2002,
-          2006,
-          2006,
-          2010,
-          2010,
-          2014,
-          2014,
-          2018,
-          2018,
-          2022,
-          2022,
-      ],
-      "Tournament": [
-          "France 1998",
-          "France 1998",
-          "Korea/Japan 2002",
-          "Korea/Japan 2002",
-          "Germany 2006",
-          "Germany 2006",
-          "South Africa 2010",
-          "South Africa 2010",
-          "Brazil 2014",
-          "Brazil 2014",
-          "Russia 2018",
-          "Russia 2018",
-          "Qatar 2022",
-          "Qatar 2022",
-      ],
-      "Team": [
-          "France",
-          "Brazil",
-          "Brazil",
-          "Germany",
-          "Italy",
-          "France",
-          "Spain",
-          "Netherlands",
-          "Germany",
-          "Argentina",
-          "France",
-          "Croatia",
-          "Argentina",
-          "France",
-      ],
-      "Stage": [
-          "Final",
-          "Final",
-          "Final",
-          "Final",
-          "Final",
-          "Final",
-          "Final",
-          "Final",
-          "Final",
-          "Final",
-          "Final",
-          "Final",
-          "Final",
-          "Final",
-      ],
-      "GoalsScored": [3, 0, 2, 0, 1, 1, 1, 0, 1, 0, 4, 2, 3, 3],
-      "MatchesPlayed": [7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7],
-      "YellowCards": [12, 11, 8, 14, 10, 15, 8, 22, 10, 11, 12, 15, 20, 16],
-      "PossessionAvg": [
-          52.0,
-          58.0,
-          54.0,
-          46.0,
-          48.0,
-          53.0,
-          58.0,
-          47.0,
-          52.0,
-          48.0,
-          48.0,
-          54.0,
-          47.0,
-          46.0,
-      ],
-  }
-  return pd.DataFrame(data)
+def load_census_data():
+    years = [1950, 1961, 1971, 1981, 1991, 2001, 2011, 2021, 2026]
+    regions = [
+        'Scotland', 'North England', 'Midlands', 
+        'London & South East', 'Wales', 'Northern Ireland'
+    ]
+    
+    # Historical trend emulation based on ONS and NRS census records
+    # Showing percentage of households with access to 1+ cars or vans
+    raw_data = {
+        'Scotland': [14.5, 31.1, 43.0, 56.7, 68.7, 73.2, 75.1, 76.2, 77.0],
+        'North England': [16.0, 32.5, 45.2, 58.0, 70.1, 74.5, 76.8, 77.5, 78.2],
+        'Midlands': [17.5, 34.0, 48.1, 61.2, 72.5, 77.0, 79.2, 80.1, 80.8],
+        'London & South East': [22.0, 40.5, 54.0, 65.5, 75.0, 78.5, 80.1, 81.0, 81.5],
+        'Wales': [15.0, 30.2, 44.0, 57.5, 70.0, 75.0, 77.5, 78.4, 79.0],
+        'Northern Ireland': [13.0, 28.0, 41.0, 54.0, 67.0, 73.0, 76.0, 78.0, 78.9]
+    }
+    
+    records = []
+    for region, values in raw_data.items():
+        for year, val in zip(years, values):
+            records.append({
+                'Year': year,
+                'Region': region,
+                'Car_Availability_Pct': val
+            })
+            
+    return pd.DataFrame(records)
 
+df = load_census_data()
 
-df = load_data()
+# 3. Dashboard Sidebar Controls
+st.sidebar.header("🎛️ Dashboard Controls")
+st.sidebar.markdown("Filter census data parameters to explore geographical and temporal trends.")
 
-# 3. App Header
-st.title("⚽ FIFA World Cup Data Explorer")
-st.markdown(
-    "Explore historical team statistics, goals scored, disciplinary records,"
-    " and performance metrics across different FIFA World Cup tournaments."
+selected_regions = st.sidebar.multiselect(
+    "Select Regions:",
+    options=df['Region'].unique(),
+    default=df['Region'].unique()
 )
 
-# 4. Sidebar Filters
-st.sidebar.header("Filter Options")
-
-tournaments = sorted(df["Tournament"].unique())
-selected_tournaments = st.sidebar.multiselect(
-    "Select Tournaments", options=tournaments, default=tournaments
+year_range = st.sidebar.slider(
+    "Select Year Range:",
+    min_value=int(df['Year'].min()),
+    max_value=int(df['Year'].max()),
+    value=(1950, 2026),
+    step=1
 )
 
-teams = sorted(df["Team"].unique())
-selected_teams = st.sidebar.multiselect(
-    "Select Teams", options=teams, default=teams[:5]
-)
-
+# Filter Data
 filtered_df = df[
-    df["Tournament"].isin(selected_tournaments) & df["Team"].isin(selected_teams)
+    (df['Region'].isin(selected_regions)) & 
+    (df['Year'] >= year_range[0]) & 
+    (df['Year'] <= year_range[1])
 ]
 
-# 5. Main Content: Metrics / KPIs
-st.subheader("📊 Tournament Overview")
+# 4. Main Dashboard Header
+st.title("🚗 Regional Car Availability Census Explorer")
+st.markdown("""
+This interactive dashboard visualizes the decennial evolution of **household car and van availability** from the post-war era (1950) to present census milestones and estimates. Use the sidebar filters to customize your view.
+""")
 
-if filtered_df.empty:
-  st.warning(
-      "No data available for the selected filters. Please select more options"
-      " in the sidebar."
-  )
-else:
-  total_goals = int(filtered_df["GoalsScored"].sum())
-  total_yellow_cards = int(filtered_df["YellowCards"].sum())
-  avg_possession = round(filtered_df["PossessionAvg"].mean(), 2)
+# 5. Top Metric Summary Cards
+col1, col2, col3 = st.columns(3)
+with col1:
+    latest_year_data = df[df['Year'] == df['Year'].max()]
+    avg_current = latest_year_data['Car_Availability_Pct'].mean()
+    st.metric(label=f"Avg. Household Ownership ({df['Year'].max()})", value=f"{avg_current:.1f}%")
 
-  col1, col2, col3 = st.columns(3)
-  col1.metric(label="Total Goals Scored", value=total_goals)
-  col2.metric(label="Total Yellow Cards", value=total_yellow_cards)
-  col3.metric(label="Average Possession (%)", value=f"{avg_possession}%")
+with col2:
+    earliest_year_data = df[df['Year'] == 1950]
+    avg_past = earliest_year_data['Car_Availability_Pct'].mean()
+    st.metric(label="Avg. Household Ownership (1950)", value=f"{avg_past:.1f}%", delta=f"+{avg_current - avg_past:.1f}% overall growth")
 
-  st.divider()
+with col3:
+    st.metric(label="Total Regions Tracked", value=len(df['Region'].unique()))
 
-  # 6. Visualizations
-  col_chart1, col_chart2 = st.columns(2)
+st.markdown("---")
 
-  with col_chart1:
-    st.markdown("### Goals Scored by Team")
-    fig_goals = px.bar(
-        filtered_df,
-        x="Team",
-        y="GoalsScored",
-        color="Tournament",
-        barmode="group",
-        title="Goals Scored Comparison",
-    )
-    st.plotly_chart(fig_goals, use_container_width=True)
+# 6. Interactive Time Series Line Chart
+st.subheader("📈 Time Series: Car Availability Rate by Region (%)")
 
-  with col_chart2:
-    st.markdown("### Possession vs. Goals")
-    fig_scatter = px.scatter(
-        filtered_df,
-        x="PossessionAvg",
-        y="GoalsScored",
-        color="Team",
-        size="YellowCards",
-        hover_name="Tournament",
-        title="Average Possession vs Goals Scored",
-    )
-    st.plotly_chart(fig_scatter, use_container_width=True)
+fig = px.line(
+    filtered_df,
+    x='Year',
+    y='Car_Availability_Pct',
+    color='Region',
+    markers=True,
+    labels={
+        'Car_Availability_Pct': 'Households with Access (%)',
+        'Year': 'Census Year'
+    },
+    title="Percentage of Households with Access to One or More Cars/Vans"
+)
 
-  # 7. Raw Data Table
-  with st.expander("🔍 View Raw Dataset"):
+fig.update_layout(
+    xaxis=dict(tickmode='linear', dtick=10),
+    yaxis=dict(range=[0, 100]),
+    hovermode='x unified',
+    template='plotly_white',
+    height=500
+)
+
+st.plotly_chart(fig, use_container_width=True)
+
+# 7. Raw Data Explorer Section
+with st.expander("🔍 View Raw Census Data Table"):
     st.dataframe(filtered_df, use_container_width=True)
